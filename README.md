@@ -438,34 +438,50 @@ docker run --rm -e BANXICO_TOKEN -e SQL_CONNECTION_STRING \
   <usuario>/tipo-cambio-dof:latest historico --desde 2020-01-01
 ```
 
-Programación con **cron** en el host (servidor en hora CDMX):
+Programación con **cron** en el host (servidor en hora CDMX). Se fija la versión (`1.0.0`) en lugar
+de `latest`, para que una publicación nueva no cambie lo que corre sin actualizar el cron:
 
 ```cron
-0 13 * * 1-5  docker run --rm --env-file /etc/tipo-cambio-dof.env <usuario>/tipo-cambio-dof:latest >> /var/log/tipo-cambio-dof.log 2>&1
+0 13 * * 1-5  docker run --rm --env-file /etc/tipo-cambio-dof.env tonovarela/tipo-cambio-dof:1.0.0 >> /var/log/tipo-cambio-dof.log 2>&1
 ```
 
-Programación con **Kubernetes**:
+Producción con **Docker Compose** (`docker-compose.prod.yml`). Usa la imagen publicada `1.0.0`, sin
+compilar, con sistema de archivos de solo lectura y sin privilegios. En el servidor solo hacen falta
+ese archivo y un `.env` junto a él (copiado de `.env.example`, con `chmod 600`):
 
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: tipo-cambio-dof
-spec:
-  schedule: "0 13 * * 1-5"
-  timeZone: "America/Mexico_City"
-  concurrencyPolicy: Forbid
-  jobTemplate:
-    spec:
-      backoffLimit: 0
-      activeDeadlineSeconds: 14400   # cubre la ventana de reintentos 13:00–16:00
-      template:
-        spec:
-          restartPolicy: Never
-          containers:
-            - name: app
-              image: <usuario>/tipo-cambio-dof:latest
-              envFrom:
-                - secretRef:
-                    name: tipo-cambio-dof
+```bash
+mkdir -p /opt/tipo-cambio-dof && cd /opt/tipo-cambio-dof
+# copiar aquí docker-compose.prod.yml y .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml run --rm app crear-tabla   # una sola vez
+docker compose -f docker-compose.prod.yml run --rm app               # prueba manual de diario
 ```
+
+El contenedor corre una vez y termina, así que la programación va en el crontab del host con
+`tipo-cambio-dof.sh`, que se copia a la misma carpeta (`chmod +x`). El script:
+
+- corre `docker compose -f docker-compose.prod.yml run --rm -T app` con los argumentos que reciba
+  (sin argumentos, `diario`);
+- escribe la salida con fecha y hora en un archivo por día, `logs/tipo-cambio-dof-AAAA-MM-DD.log`
+  (fecha CDMX; carpeta configurable con `TIPO_CAMBIO_LOG_DIR`), y borra los de más de 90 días
+  (`TIPO_CAMBIO_LOG_DIAS`, `0` = conservar todos);
+- usa `flock` para que dos corridas no se encimen; si ya hay una, sale con código 75;
+- termina con el código de salida de la app (0, 1, 2 o 64).
+
+```bash
+./tipo-cambio-dof.sh crear-tabla                    # una sola vez
+./tipo-cambio-dof.sh                                # prueba manual de diario
+./tipo-cambio-dof.sh historico --desde 2024-01-01
+```
+
+El script está pensado para **CentOS** (cronie, bash ≥ 4, `flock` de util-linux). Usa `docker compose`
+(paquete `docker-compose-plugin`) y, si no está, el binario `docker-compose`. Entrada de `crontab -e`
+de root o de un usuario del grupo `docker`. `CRON_TZ` hace que cronie la evalúe en hora CDMX aunque
+el servidor esté en otra zona:
+
+```cron
+CRON_TZ=America/Mexico_City
+0 13 * * 1-5  /opt/tipo-cambio-dof/tipo-cambio-dof.sh
+```
+
+Para cambiar de versión, edita `image:` en `docker-compose.prod.yml` y corre `pull`.

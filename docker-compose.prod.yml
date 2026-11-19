@@ -1,0 +1,28 @@
+# Producción: usa la imagen publicada en Docker Hub (no compila nada).
+# En el servidor solo hacen falta este archivo y un .env junto a él (ver .env.example):
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml run --rm app crear-tabla   # una sola vez
+#   docker compose -f docker-compose.prod.yml run --rm app               # corrida diaria
+#
+# La app corre una vez y termina (exit 0 ok, 1 error, 2 con alertas, 64 argumentos inválidos).
+# La programación (lun–vie 13:00 CDMX) va en el cron del host; ver README §11.
+services:
+  app:
+    image: tonovarela/tipo-cambio-dof:1.0.0
+    # Forma corta: obligatoria y compatible con docker-compose v1 y Compose v2 anteriores a 2.24.
+    env_file: .env
+    # Corrida única: un restart volvería a ejecutarla en bucle.
+    restart: "no"
+    # SIGTERM cancela la corrida en curso; se le da tiempo de cerrar la transacción.
+    stop_grace_period: 30s
+    # Permite usar Server=host.docker.internal en SQL_CONNECTION_STRING si SQL Server está en el mismo host Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Endurecimiento: sistema de archivos de solo lectura, sin capabilities ni escalamiento de privilegios.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
