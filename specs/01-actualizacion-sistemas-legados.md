@@ -1,6 +1,6 @@
 # SPEC 01 — Actualización de sistemas legados con el tipo de cambio publicado hoy en el DOF
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** —
 > **Fecha:** 2026-11-19
 > **Objetivo:** Al terminar con éxito la corrida `diario`, escribir el valor publicado hoy en el DOF en `FIN_MovtoMoeda` (Metrics) y `dbo.Mon` (Lito) con las sentencias de `src/TipoCambioDof/Datos/Actualizacion.sql`.
