@@ -104,11 +104,15 @@ public sealed class RepositorioTipoCambio(Configuracion cfg)
         return await EscalarAsync(sql, fecha, ct);
     }
 
-    public async Task<bool> ExisteAsync(DateOnly fecha, CancellationToken ct)
+    /// <summary>Valor guardado para <paramref name="fechaAplicacion"/>, o null si no existe.</summary>
+    public async Task<decimal?> ValorAsync(DateOnly fechaAplicacion, CancellationToken ct)
     {
         const string sql = "SELECT valor FROM dbo.tipo_cambio WHERE moneda = @moneda AND fecha_aplicacion = @fecha;";
-        return await EscalarAsync(sql, fecha, ct) is not null;
+        return await EscalarAsync(sql, fechaAplicacion, ct);
     }
+
+    public async Task<bool> ExisteAsync(DateOnly fecha, CancellationToken ct) =>
+        await ValorAsync(fecha, ct) is not null;
 
     private async Task<decimal?> EscalarAsync(string sql, DateOnly fecha, CancellationToken ct)
     {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
 
 namespace TipoCambioDof;
@@ -23,6 +24,11 @@ public sealed record Configuracion
     public TimeSpan PausaHistorico { get; init; } = TimeSpan.FromMilliseconds(1500);
     public string ZonaHoraria { get; init; } = "America/Mexico_City";
 
+    /// <summary>Escribir en los sistemas legados (Metrics y Lito) al terminar la corrida diaria (SPEC 01).</summary>
+    public bool ActualizarLegados { get; init; }
+    public string? BdMetrics { get; init; }
+    public string? BdLito { get; init; }
+
     public static Configuracion Desde(IConfiguration c) => new()
     {
         TokenBanxico = Texto(c, "BANXICO_TOKEN"),
@@ -38,6 +44,9 @@ public sealed record Configuracion
             ? TimeOnly.ParseExact(h, "HH:mm", CultureInfo.InvariantCulture)
             : new TimeOnly(16, 0),
         PausaHistorico = TimeSpan.FromMilliseconds(Entero(c, "PAUSA_HISTORICO_MS", 1500)),
+        ActualizarLegados = Booleano(c, "ACTUALIZAR_LEGADOS", false),
+        BdMetrics = Texto(c, "BD_METRICS"),
+        BdLito = Texto(c, "BD_LITO"),
     };
 
     public void ExigirCadenaConexion()
@@ -55,6 +64,30 @@ public sealed record Configuracion
                 $"BANXICO_TOKEN debe tener 64 caracteres (tiene {TokenBanxico.Length}).");
     }
 
+    /// <summary>
+    /// Valida la configuración de los sistemas legados. Los nombres de BD se insertan en el SQL entre
+    /// corchetes (un identificador no se puede parametrizar), así que este filtro evita inyección.
+    /// </summary>
+    public void ExigirLegados()
+    {
+        NombreBd("BD_METRICS", BdMetrics);
+        NombreBd("BD_LITO", BdLito);
+        if (DiasAdelante < 1)
+            throw new ConfiguracionInvalidaException(
+                "ACTUALIZAR_LEGADOS requiere DIAS_ADELANTE >= 1: con 0 no se consulta lo publicado hoy en el DOF.");
+    }
+
+    private static readonly Regex PatronNombreBd = new("^[A-Za-z_][A-Za-z0-9_]{0,127}$", RegexOptions.CultureInvariant);
+
+    private static void NombreBd(string clave, string? valor)
+    {
+        if (valor is null)
+            throw new ConfiguracionInvalidaException($"ACTUALIZAR_LEGADOS=true requiere la variable de entorno {clave}.");
+        if (!PatronNombreBd.IsMatch(valor))
+            throw new ConfiguracionInvalidaException(
+                $"{clave} no es un nombre de base de datos válido (letras, dígitos y '_'): '{valor}'.");
+    }
+
     private static string? Texto(IConfiguration c, string clave) =>
         string.IsNullOrWhiteSpace(c[clave]) ? null : c[clave]!.Trim();
 
@@ -63,6 +96,13 @@ public sealed record Configuracion
             ? int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n >= 0
                 ? n
                 : throw new ConfiguracionInvalidaException($"{clave} debe ser un entero no negativo: '{v}'.")
+            : defecto;
+
+    private static bool Booleano(IConfiguration c, string clave, bool defecto) =>
+        Texto(c, clave) is { } v
+            ? bool.TryParse(v, out var b)
+                ? b
+                : throw new ConfiguracionInvalidaException($"{clave} debe ser true o false: '{v}'.")
             : defecto;
 
     private static decimal Decimal(IConfiguration c, string clave, decimal defecto) =>

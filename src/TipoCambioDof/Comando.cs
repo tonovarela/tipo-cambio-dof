@@ -22,6 +22,8 @@ public sealed record Comando(TipoComando Tipo, DateOnly? Desde = null, DateOnly?
           ALERT_WEBHOOK_URL      Opcional. Webhook (Slack/Teams) que recibe {"text": "..."} por cada alerta.
           DIAS_ATRAS=10  DIAS_ADELANTE=1  VALOR_MINIMO=10  VALOR_MAXIMO=40  VARIACION_MAXIMA_PCT=5
           REINTENTO_MINUTOS=30  HORA_LIMITE=16:00  PAUSA_HISTORICO_MS=1500
+          ACTUALIZAR_LEGADOS     true/false (default false). Al terminar diario escribe lo publicado hoy en el DOF
+                                 en BD_METRICS.dbo.FIN_MovtoMoeda y BD_LITO.dbo.Mon (requiere BD_METRICS y BD_LITO).
 
         Códigos de salida: 0 = OK, 1 = error, 2 = terminó con alertas, 64 = argumentos inválidos.
         """;

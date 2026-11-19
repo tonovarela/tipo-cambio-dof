@@ -47,6 +47,7 @@ builder.Services.AddSingleton(cfg);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<Reloj>();
 builder.Services.AddSingleton<RepositorioTipoCambio>();
+builder.Services.AddSingleton<RepositorioLegados>();
 builder.Services.AddSingleton<Alertador>();
 builder.Services.AddSingleton<Sincronizador>();
 builder.Services.AddSingleton<ProcesoDiario>();
@@ -78,6 +79,8 @@ try
             break;
         case TipoComando.Diario:
             cfg.ExigirToken();
+            if (cfg.ActualizarLegados)
+                cfg.ExigirLegados();
             await host.Services.GetRequiredService<ProcesoDiario>().EjecutarAsync(cts.Token);
             break;
         case TipoComando.Historico:

@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Datos/Esquema.sql" LogicalName="Esquema.sql" />
+    <EmbeddedResource Include="Datos/Actualizacion.sql" LogicalName="Actualizacion.sql" />
   </ItemGroup>
 
   <ItemGroup>

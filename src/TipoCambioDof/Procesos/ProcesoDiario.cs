@@ -9,11 +9,13 @@ namespace TipoCambioDof.Procesos;
 /// con el default (1) eso llega hasta lo publicado hoy en el DOF, que en SF60653 tiene fecha hoy + 1.
 /// Verifica que exista el valor de la fecha de cobertura; si no, reintenta cada REINTENTO_MINUTOS
 /// mientras no pase de HORA_LIMITE y después alerta. Pensado para lanzarse L–V a las 13:00 (hora CDMX)
-/// desde un programador externo.
+/// desde un programador externo. Con ACTUALIZAR_LEGADOS=true, al confirmar la cobertura escribe el valor
+/// publicado hoy en el DOF en los sistemas legados (SPEC 01).
 /// </summary>
 public sealed class ProcesoDiario(
     Sincronizador sincronizador,
     RepositorioTipoCambio repo,
+    RepositorioLegados legados,
     Alertador alertador,
     Reloj reloj,
     Configuracion cfg,
@@ -35,11 +37,13 @@ public sealed class ProcesoDiario(
 
             await sincronizador.SincronizarAsync(hoy.AddDays(-cfg.DiasAtras), hoy.AddDays(cfg.DiasAdelante), ct);
 
-            if (await repo.ExisteAsync(objetivo, ct))
+            if (await repo.ValorAsync(objetivo, ct) is { } valor)
             {
                 log.LogInformation(
                     "Cobertura OK: existe el tipo de cambio con fecha de aplicación {Objetivo:yyyy-MM-dd} (publicación DOF {Dof:yyyy-MM-dd}).",
                     objetivo, objetivo.AddDays(-1));
+                if (cfg.ActualizarLegados)
+                    await ActualizarLegadosAsync(objetivo.AddDays(-1), valor, ct);
                 return;
             }
 
@@ -55,5 +59,21 @@ public sealed class ProcesoDiario(
                 objetivo, siguiente);
             await Task.Delay(cfg.IntervaloReintento, reloj.Tiempo, ct);
         }
+    }
+
+    /// <summary>
+    /// Escribe en Metrics y Lito. Una SqlException se propaga a Program.cs (alerta y exit 1);
+    /// dbo.tipo_cambio ya quedó guardado en su propia transacción.
+    /// </summary>
+    private async Task ActualizarLegadosAsync(DateOnly fechaPublicacionDof, decimal valor, CancellationToken ct)
+    {
+        var r = await legados.ActualizarAsync(fechaPublicacionDof, valor, ct);
+        log.LogInformation(
+            "Sistemas legados: publicación DOF {Fecha:yyyy-MM-dd}, valor {Valor} → FIN_MovtoMoeda movto={Movto}, Mon mon={Mon}.",
+            fechaPublicacionDof, valor, r.Movto, r.Mon);
+
+        if (r.Mon == ResultadoLegados.NoExiste)
+            await alertador.EnviarAsync(
+                $"No existe la fila Moneda='Dolares' en {cfg.BdLito}.dbo.Mon; no se actualizó el tipo de cambio {valor} (publicación DOF {fechaPublicacionDof:yyyy-MM-dd}).", ct);
     }
 }

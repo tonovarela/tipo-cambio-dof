@@ -324,7 +324,8 @@ minutos hasta las 16:00 ocurren dentro de la misma corrida.
 src/TipoCambioDof/          App de consola
   Banxico/                  Cliente HTTP y lectura de la respuesta SIE
   Dominio/Validador.cs      Rango razonable y variación diaria (paso 3)
-  Datos/                    Esquema.sql (embebido) y upsert con MERGE (paso 4)
+  Datos/                    Esquema.sql (embebido) y upsert con MERGE (paso 4);
+                            Actualizacion.sql (embebido) para los sistemas legados
   Procesos/                 Corrida diaria (pasos 1–5) y carga histórica (sección 8)
   Alertas/Alertador.cs      Log + webhook opcional
 tests/TipoCambioDof.Tests/  Pruebas unitarias (xUnit)
@@ -354,6 +355,24 @@ tests/TipoCambioDof.Tests/  Pruebas unitarias (xUnit)
 | `VARIACION_MAXIMA_PCT` | `5` | Variación diaria que dispara alerta (sí se guarda). |
 | `REINTENTO_MINUTOS` / `HORA_LIMITE` | `30` / `16:00` | Reintentos de la verificación de cobertura (hora CDMX). |
 | `PAUSA_HISTORICO_MS` | `1500` | Pausa entre bloques de la carga histórica. |
+| `ACTUALIZAR_LEGADOS` | `false` | `true` = al confirmar la cobertura, `diario` escribe lo publicado hoy en el DOF en los sistemas legados (ver abajo). Requiere `DIAS_ADELANTE` ≥ 1. |
+| `BD_METRICS` / `BD_LITO` | — | Requeridas si `ACTUALIZAR_LEGADOS=true`. Nombres de las bases de datos (p. ej. `MetricsBETA` / `Lito_jess`), en la misma instancia que `SQL_CONNECTION_STRING`. Solo letras, dígitos y `_`. |
+
+#### Sistemas legados (`ACTUALIZAR_LEGADOS=true`)
+
+Al final de `diario`, cuando ya existe el valor con `fecha_publicacion_dof` = hoy, se ejecuta
+`Datos/Actualizacion.sql` en una transacción propia (separada de `dbo.tipo_cambio`):
+
+- `BD_METRICS.dbo.FIN_MovtoMoeda`: upsert de `IdMoeda = 2`, `Base = 1`, `DataMovtoMoeda` = hoy
+  (fecha de publicación DOF), `ValorMoedaDia` = valor. Repetir la corrida no duplica filas.
+- `BD_LITO.dbo.Mon`: `TipoCambio` y `UltimoCambio = GETDATE()` de `Moneda = 'Dolares'`, si el valor
+  cambió o si todavía no se actualizó hoy, así queda un `UltimoCambio` y una fila en `MonHist` por día.
+  Repetir la corrida el mismo día no mueve nada. Si esa fila no existe se envía una alerta (código 2)
+  y no se inserta.
+
+Si la escritura falla (permisos, base inexistente, etc.) la corrida alerta y termina con código 1;
+`dbo.tipo_cambio` conserva lo sincronizado. El usuario de SQL necesita `SELECT/INSERT/UPDATE` sobre
+`FIN_MovtoMoeda` y `SELECT/UPDATE` sobre `Mon`.
 
 Diferencias contra el esquema de la sección 5:
 
