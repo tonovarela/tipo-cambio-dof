@@ -1,11 +1,12 @@
--- SPEC 01. Escribe en los sistemas legados el tipo de cambio publicado hoy en el DOF.
--- Un solo batch (sin GO), idempotente. RepositorioLegados lo ejecuta dentro de su propia transacción.
+-- SPEC 01 y SPEC 02. Escribe en los sistemas legados el tipo de cambio publicado hoy en el DOF.
+-- Un solo batch (sin GO). RepositorioLegados lo ejecuta dentro de su propia transacción.
 -- Los marcadores de base de datos se reemplazan por [nombre] (validado en Configuracion) antes de ejecutar.
 -- Parámetros: @valor DECIMAL(12,6) y @fecha DATE (fecha de publicación DOF = hoy).
--- Devuelve una fila: movto ∈ INSERT | UPDATE | SIN_CAMBIO, mon ∈ UPDATE | SIN_CAMBIO | NO_EXISTE.
+-- Devuelve una fila: movto ∈ INSERT | UPDATE | SIN_CAMBIO, mon ∈ UPDATE | NO_EXISTE.
 --
--- Un UPDATE solo se ejecuta si hay un valor distinto: los triggers AFTER UPDATE se disparan aunque el
--- UPDATE afecte 0 filas, y el de LITO_jess.dbo.Mon (historial en MonHist) falla con 'inserted' vacío.
+-- Nunca se ejecuta un UPDATE de 0 filas: los triggers AFTER UPDATE se disparan aunque el UPDATE no
+-- afecte filas, y el de LITO_jess.dbo.Mon (historial en MonHist) falla con 'inserted' vacío.
+-- En FIN_MovtoMoeda solo se actualiza si el valor cambió; en Mon, siempre que exista la fila 'Dolares'.
 
 SET NOCOUNT ON;
 
@@ -34,23 +35,18 @@ BEGIN
     SET @movto = 'INSERT';
 END;
 
--- Lito: se actualiza si cambia el valor o si todavía no se actualizó hoy (@fecha), para que haya un
--- UltimoCambio y una fila en MonHist por día, como con la captura manual. Repetir la corrida el
--- mismo día no mueve nada.
+-- Lito (SPEC 02): se actualiza en cada corrida, aunque el valor no cambie, para que UltimoCambio
+-- refleje la última escritura de esta app. Cada corrida agrega una fila en MonHist (trigger).
 -- Si falta la fila 'Dolares' no se inserta (la tabla no es de esta app); el código alerta.
+-- El IF NOT EXISTS previo garantiza que el UPDATE afecte exactamente una fila.
 IF NOT EXISTS (SELECT 1 FROM {BD_LITO}.dbo.Mon WITH (UPDLOCK, HOLDLOCK) WHERE Moneda = 'Dolares')
     SET @mon = 'NO_EXISTE';
-ELSE IF EXISTS (SELECT 1 FROM {BD_LITO}.dbo.Mon
-                WHERE Moneda = 'Dolares'
-                  AND (TipoCambio <> @valor OR TipoCambio IS NULL
-                       OR UltimoCambio IS NULL OR CAST(UltimoCambio AS DATE) < @fecha))
+ELSE
 BEGIN
     UPDATE {BD_LITO}.dbo.Mon
        SET TipoCambio = @valor, UltimoCambio = GETDATE()
      WHERE Moneda = 'Dolares';
     SET @mon = 'UPDATE';
-END
-ELSE
-    SET @mon = 'SIN_CAMBIO';
+END;
 
 SELECT @movto AS movto, @mon AS mon;

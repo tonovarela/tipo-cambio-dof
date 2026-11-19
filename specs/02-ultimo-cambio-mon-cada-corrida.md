@@ -1,6 +1,6 @@
 # SPEC 02 — Actualizar `Mon.UltimoCambio` en cada corrida de `diario`
 
-> **Estado:** Aceptado
+> **Estado:** Implementado
 > **Depende de:** SPEC 01
 > **Fecha:** 2026-11-19
 > **Objetivo:** Cada corrida de `diario` con cobertura OK debe poner `UltimoCambio = GETDATE()` en `{BD_LITO}.dbo.Mon` (`Moneda = 'Dolares'`), aunque el tipo de cambio no haya cambiado.

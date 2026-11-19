@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 
 namespace TipoCambioDof.Datos;
 
-/// <summary>Resultado de <c>Actualizacion.sql</c>: movto ∈ INSERT|UPDATE|SIN_CAMBIO, mon ∈ UPDATE|SIN_CAMBIO|NO_EXISTE.</summary>
+/// <summary>Resultado de <c>Actualizacion.sql</c>: movto ∈ INSERT|UPDATE|SIN_CAMBIO, mon ∈ UPDATE|NO_EXISTE (SPEC 02: Mon se actualiza en cada corrida).</summary>
 public sealed record ResultadoLegados(string Movto, string Mon)
 {
     public const string NoExiste = "NO_EXISTE";

@@ -365,10 +365,10 @@ Al final de `diario`, cuando ya existe el valor con `fecha_publicacion_dof` = ho
 
 - `BD_METRICS.dbo.FIN_MovtoMoeda`: upsert de `IdMoeda = 2`, `Base = 1`, `DataMovtoMoeda` = hoy
   (fecha de publicación DOF), `ValorMoedaDia` = valor. Repetir la corrida no duplica filas.
-- `BD_LITO.dbo.Mon`: `TipoCambio` y `UltimoCambio = GETDATE()` de `Moneda = 'Dolares'`, si el valor
-  cambió o si todavía no se actualizó hoy, así queda un `UltimoCambio` y una fila en `MonHist` por día.
-  Repetir la corrida el mismo día no mueve nada. Si esa fila no existe se envía una alerta (código 2)
-  y no se inserta.
+- `BD_LITO.dbo.Mon`: `TipoCambio` y `UltimoCambio = GETDATE()` de `Moneda = 'Dolares'` en cada
+  corrida de `diario` con cobertura OK, aunque el valor no cambie, así `UltimoCambio` refleja la
+  última escritura. Cada corrida agrega una fila en `MonHist` por el trigger de `Mon`. Si esa fila
+  no existe se envía una alerta (código 2) y no se inserta.
 
 Si la escritura falla (permisos, base inexistente, etc.) la corrida alerta y termina con código 1;
 `dbo.tipo_cambio` conserva lo sincronizado. El usuario de SQL necesita `SELECT/INSERT/UPDATE` sobre
