@@ -20,6 +20,7 @@ La "fecha de registro" de `Mon` es la columna `UltimoCambio`, que ya existe. Est
 - En `Datos/Actualizacion.sql`, el bloque de Lito ejecuta `UPDATE ... SET TipoCambio = @valor, UltimoCambio = GETDATE() WHERE Moneda = 'Dolares'` siempre que exista la fila `'Dolares'`. Se elimina la condición de "valor distinto o no actualizado hoy".
 - El resultado `mon` queda en `UPDATE` | `NO_EXISTE`. `SIN_CAMBIO` ya no se devuelve para `mon`.
 - Actualizar los comentarios de `Actualizacion.sql`, el comentario de `ResultadoLegados` en `Datos/RepositorioLegados.cs` y la descripción de README §11.
+- Agregado durante la implementación: en `dbo.tipo_cambio`, `fecha_captura` y `fecha_actualizacion` se llenan con `GETDATE()` en lugar de `SYSUTCDATETIME()` (`Datos/RepositorioTipoCambio.cs`). README §11 y `CLAUDE.md` se actualizan.
 
 **Fuera de alcance (para specs futuros):**
 
@@ -63,6 +64,8 @@ public sealed record ResultadoLegados(string Movto, string Mon);
 - [ ] Si no existe la fila `Moneda = 'Dolares'`, el comportamiento es el de SPEC 01: alerta, exit 2 y `mon=NO_EXISTE`.
 - [ ] Con `ACTUALIZAR_LEGADOS` sin definir, `diario` no toca `Mon`.
 - [ ] Si a las 16:00 no hay cobertura, `Mon.UltimoCambio` no cambia.
+- [ ] Una fila nueva en `dbo.tipo_cambio` queda con `fecha_captura` igual a la hora local del servidor SQL (`GETDATE()`), no UTC.
+- [ ] Cuando Banxico revisa un valor, `fecha_actualizacion` queda con `GETDATE()` del servidor SQL.
 
 ## Decisiones
 
@@ -77,6 +80,9 @@ public sealed record ResultadoLegados(string Movto, string Mon);
 - **No:** un valor nuevo (p. ej. `FECHA`) para distinguir "solo cambió la fecha" de "cambió el valor". El valor anterior no se usa en ninguna lógica, y `movto` de `FIN_MovtoMoeda` ya indica si el valor cambió.
 - **Sí:** este spec modifica el comportamiento de SPEC 01 para `Mon`. El criterio de SPEC 01 "Repetir `diario` el mismo día sin cambio de valor … no cambia `Mon.UltimoCambio` y registra `mon=SIN_CAMBIO`" queda reemplazado por los de este spec. SPEC 01 no se edita.
 - **Sí:** solo `Mon`. `FIN_MovtoMoeda` queda fuera porque la petición es solo sobre `Mon`.
+- **Sí:** `fecha_captura` y `fecha_actualizacion` de `dbo.tipo_cambio` con `GETDATE()`. Lo pidió el usuario durante la implementación, para usar la misma referencia de hora que `Mon.UltimoCambio`.
+- **No:** convertir las filas existentes de UTC a hora local. Las filas anteriores a este cambio conservan su hora UTC.
+- **No:** cambiar el default `SYSUTCDATETIME()` de `tipo_cambio_auditoria.fecha_cambio`. No se pidió, y cambiar un default en una tabla existente requiere migración.
 
 ## Riesgos
 

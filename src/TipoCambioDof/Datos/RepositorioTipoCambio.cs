@@ -19,10 +19,10 @@ public sealed class RepositorioTipoCambio(Configuracion cfg)
         USING (SELECT @fecha AS fecha_aplicacion, @moneda AS moneda) AS s
            ON t.fecha_aplicacion = s.fecha_aplicacion AND t.moneda = s.moneda
         WHEN MATCHED AND t.valor <> @valor THEN
-            UPDATE SET valor = @valor, fecha_actualizacion = SYSUTCDATETIME()
+            UPDATE SET valor = @valor, fecha_actualizacion = GETDATE()
         WHEN NOT MATCHED THEN
             INSERT (fecha_aplicacion, moneda, valor, fecha_publicacion_dof, fuente, fecha_captura)
-            VALUES (@fecha, @moneda, @valor, DATEADD(day, -1, @fecha), @fuente, SYSUTCDATETIME())
+            VALUES (@fecha, @moneda, @valor, DATEADD(day, -1, @fecha), @fuente, GETDATE())
         OUTPUT $action, deleted.valor;
         """;
 

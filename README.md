@@ -376,7 +376,9 @@ Si la escritura falla (permisos, base inexistente, etc.) la corrida alerta y ter
 
 Diferencias contra el esquema de la sección 5:
 
-- Las columnas de fecha y hora son `DATETIME2(0)` en **UTC**.
+- Las columnas de fecha y hora son `DATETIME2(0)`. `fecha_captura` y `fecha_actualizacion` de
+  `tipo_cambio` se llenan con `GETDATE()` (hora local del servidor SQL). `fecha_cambio` de
+  `tipo_cambio_auditoria` sigue en **UTC** (`SYSUTCDATETIME()`).
 - Se agrega la tabla `tipo_cambio_auditoria`, donde queda cada valor que Banxico revise.
 
 > **Carga histórica antes de ~1999:** el tipo de cambio estaba por debajo de 10 pesos, así que con
