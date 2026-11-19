@@ -1,0 +1,12 @@
+# Corre la app contra la base de datos de SQL_CONNECTION_STRING. Uso:
+#   cp .env.example .env   (y llenar BANXICO_TOKEN y SQL_CONNECTION_STRING)
+#   docker compose run --rm app crear-tabla
+#   docker compose run --rm app            # corrida diaria
+services:
+  app:
+    build: .
+    image: tipo-cambio-dof:local
+    environment:
+      BANXICO_TOKEN: ${BANXICO_TOKEN}
+      SQL_CONNECTION_STRING: ${SQL_CONNECTION_STRING}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
