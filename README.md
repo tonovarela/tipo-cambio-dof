@@ -154,7 +154,7 @@ curl -H "Accept: application/json" -H "Bmx-Token: $BANXICO_TOKEN" "https://www.b
 
 ```
 ┌──────────────────────────┐
-│ 1. Programador (L–V)     │  13:00 hora Ciudad de México
+│ 1. Programador (diario)  │  08:00 hora Ciudad de México, todos los días
 └────────────┬─────────────┘
              ▼
 ┌──────────────────────────┐
@@ -176,12 +176,16 @@ curl -H "Accept: application/json" -H "Bmx-Token: $BANXICO_TOKEN" "https://www.b
 
 ### Paso 1 · Programación
 
-- Correr de **lunes a viernes a las 13:00** (hora de la Ciudad de México). Banxico da a conocer
-  el FIX a partir de las 12:00.
+- Correr **todos los días a las 08:00** (hora de la Ciudad de México), por instrucción de
+  dirección. A esa hora ya existe lo publicado hoy en el DOF: es el FIX que Banxico determinó el
+  día hábil anterior (a partir de las 12:00), y SF60653 lo trae desde entonces (ver "Datos por
+  adelantado" en la sección 4). El FIX que se determina hoy no se espera (ver paso 5).
 - Si en el paso 5 falta el dato, **reintentar cada 30 minutos hasta las 16:00**. Si para
   entonces sigue sin aparecer, enviar una alerta.
-- Correr también en fines de semana no causa ningún problema: el upsert hace que repetir una
-  corrida no tenga efecto.
+- Fines de semana y días festivos: SF60653 repite el último FIX, así que la corrida guarda el
+  valor aplicable de ese día. Con `ACTUALIZAR_LEGADOS=true` también lo escribe en
+  `FIN_MovtoMoeda` y `Mon` con la fecha de ese día. Repetir una corrida no tiene efecto, gracias
+  al upsert.
 
 ### Paso 2 · Consulta
 
@@ -317,7 +321,7 @@ cálculo de fechas o una corrección del lado de Banxico.
 ## 11. Aplicación de consola (.NET 10 + Docker)
 
 Implementa las secciones 4, 5 y 8 sobre **SQL Server**. El contenedor **corre una vez y termina**:
-la programación (L–V 13:00 hora CDMX) la hace un programador externo, y los reintentos cada 30
+la programación (todos los días a las 08:00 hora CDMX) la hace un programador externo, y los reintentos cada 30
 minutos hasta las 16:00 ocurren dentro de la misma corrida.
 
 ```
@@ -442,7 +446,7 @@ Programación con **cron** en el host (servidor en hora CDMX). Se fija la versi�
 de `latest`, para que una publicación nueva no cambie lo que corre sin actualizar el cron:
 
 ```cron
-0 13 * * 1-5  docker run --rm --env-file /etc/tipo-cambio-dof.env tonovarela/tipo-cambio-dof:1.0.0 >> /var/log/tipo-cambio-dof.log 2>&1
+0 8 * * *  docker run --rm --env-file /etc/tipo-cambio-dof.env tonovarela/tipo-cambio-dof:1.0.0 >> /var/log/tipo-cambio-dof.log 2>&1
 ```
 
 Producción con **Docker Compose** (`docker-compose.prod.yml`). Usa la imagen publicada `1.0.0`, sin
@@ -458,7 +462,9 @@ docker compose -f docker-compose.prod.yml run --rm app               # prueba ma
 ```
 
 El contenedor corre una vez y termina, así que la programación va en el crontab del host con
-`tipo-cambio-dof.sh`, que se copia a la misma carpeta (`chmod +x`). El script:
+`tipo-cambio-dof.sh`, que se copia a la misma carpeta y debe ser ejecutable (`chmod 755`; `ls -l`
+debe mostrar `-rwxr-xr-x`). Si queda como `-rw-r--r--`, cron no puede ejecutarlo y falla con
+`Permission denied` sin dejar bitácora. El script:
 
 - corre `docker compose -f docker-compose.prod.yml run --rm -T app` con los argumentos que reciba
   (sin argumentos, `diario`);
@@ -481,7 +487,11 @@ el servidor esté en otra zona:
 
 ```cron
 CRON_TZ=America/Mexico_City
-0 13 * * 1-5  /opt/tipo-cambio-dof/tipo-cambio-dof.sh
+0 8 * * *  /opt/tipo-cambio-dof/tipo-cambio-dof.sh
 ```
+
+`0 8 * * *` = todos los días (incluidos sábado y domingo) a las 08:00. Sin la línea `CRON_TZ`, las
+08:00 son de la zona horaria del servidor; si está en UTC, la corrida arranca a las 02:00 CDMX y,
+cuando falte el dato, se queda reintentando hasta las 16:00.
 
 Para cambiar de versión, edita `image:` en `docker-compose.prod.yml` y corre `pull`.

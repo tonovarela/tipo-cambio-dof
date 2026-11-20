@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Ejecuta tipo-cambio-dof con docker-compose.prod.yml. Pensado para el crontab (cronie) de CentOS,
-# lun–vie 13:00 CDMX:
+# todos los días a las 08:00 CDMX:
 #
 #   CRON_TZ=America/Mexico_City
-#   0 13 * * 1-5  /opt/tipo-cambio-dof/tipo-cambio-dof.sh
+#   0 8 * * *  /opt/tipo-cambio-dof/tipo-cambio-dof.sh
 #
 # Ejecutarlo directo (./tipo-cambio-dof.sh, con chmod +x) o con bash; si se llama con sh, se relanza con bash.
 # Requiere bash ≥ 4.2, flock (util-linux) y Docker con Compose (docker-compose-plugin o docker-compose).

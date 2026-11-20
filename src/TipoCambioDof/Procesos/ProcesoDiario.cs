@@ -8,7 +8,7 @@ namespace TipoCambioDof.Procesos;
 /// Corrida diaria (README §5). Sincroniza [hoy − DIAS_ATRAS, hoy + DIAS_ADELANTE] en fechas de aplicación;
 /// con el default (1) eso llega hasta lo publicado hoy en el DOF, que en SF60653 tiene fecha hoy + 1.
 /// Verifica que exista el valor de la fecha de cobertura; si no, reintenta cada REINTENTO_MINUTOS
-/// mientras no pase de HORA_LIMITE y después alerta. Pensado para lanzarse L–V a las 13:00 (hora CDMX)
+/// mientras no pase de HORA_LIMITE y después alerta. Pensado para lanzarse todos los días a las 08:00 (hora CDMX)
 /// desde un programador externo. Con ACTUALIZAR_LEGADOS=true, al confirmar la cobertura escribe el valor
 /// publicado hoy en el DOF en los sistemas legados (SPEC 01).
 /// </summary>

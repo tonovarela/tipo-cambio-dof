@@ -5,7 +5,7 @@
 #   docker compose -f docker-compose.prod.yml run --rm app               # corrida diaria
 #
 # La app corre una vez y termina (exit 0 ok, 1 error, 2 con alertas, 64 argumentos inválidos).
-# La programación (lun–vie 13:00 CDMX) va en el cron del host; ver README §11.
+# La programación (todos los días 08:00 CDMX) va en el cron del host; ver README §11.
 services:
   app:
     image: tonovarela/tipo-cambio-dof:1.0.0
